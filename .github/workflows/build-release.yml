@@ -1,0 +1,209 @@
+# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+
+name: build-release
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  actions: write
+  checks: write
+  contents: write
+  deployments: write
+  discussions: write
+  issues: write
+  packages: write
+  pages: write
+  pull-requests: write
+  repository-projects: write
+  security-events: write
+  statuses: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.19.1]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+      - uses: actions/checkout@v3
+        name: Build project with NodeJS ${{ matrix.node-version }}
+        with:
+          repository: UncleZak/zak-launcher
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+      - run: npm ci
+      - run: cd bin && npm ci
+      - run: cd ..
+      - run: npm run build:linux
+
+      - name: Create linux32 zip
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: "zip"
+          filename: linux32-${{ github.ref_name }}.zip
+          path: linux-ia32
+          directory: build
+      - name: Create linux64 zip
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: "zip"
+          filename: linux64-${{ github.ref_name }}.zip
+          path: linux-x64
+          directory: build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux32-${{ github.ref_name }}
+          path: build/linux32-${{ github.ref_name }}.zip
+      - uses: actions/upload-artifact@v3
+        with:
+          name: linux64-${{ github.ref_name }}
+          path: build/linux64-${{ github.ref_name }}.zip
+
+  build-win:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        node-version: [16.19.1]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+      - uses: actions/checkout@v3
+        name: Build project with NodeJS ${{ matrix.node-version }}
+        with:
+          repository: UncleZak/zak-launcher
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+      - run: npm ci
+      - run: cd bin && npm ci
+      - run: cd ..
+      - run: npm run build:win
+
+      - name: Create win32 zip
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: "zip"
+          filename: win32-${{ github.ref_name }}.zip
+          path: win-ia32
+          directory: build
+      - name: Create win64 zip
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: "zip"
+          filename: win64-${{ github.ref_name }}.zip
+          path: win-x64
+          directory: build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: win32-${{ github.ref_name }}
+          path: build/win32-${{ github.ref_name }}.zip
+      - uses: actions/upload-artifact@v3
+        with:
+          name: win64-${{ github.ref_name }}
+          path: build/win64-${{ github.ref_name }}.zip
+
+  build-osx:
+    runs-on: macos-12
+
+    strategy:
+      matrix:
+        node-version: [16.19.1]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+      - uses: actions/checkout@v3
+        name: Build project with NodeJS ${{ matrix.node-version }}
+        with:
+          repository: UncleZak/zak-launcher
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+      - run: npm ci
+      - run: cd bin && npm ci
+      - run: cd ..
+      - run: npm run build:osx
+      - name: Create osx64 zip
+        uses: thedoctor0/zip-release@0.7.1
+        with:
+          type: "zip"
+          filename: osx64-${{ github.ref_name }}.zip
+          path: osx-x64
+          directory: build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: osx64-${{ github.ref_name }}
+          path: build/osx64-${{ github.ref_name }}.zip
+
+  make-release:
+    needs: [build-linux, build-win, build-osx]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: UncleZak/zak-launcher
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+      - name: make temporary directory
+        run: mkdir artifacts
+
+      - name: Download artifacts linux64
+        uses: actions/download-artifact@v3
+        id: download-linux64
+        with:
+          name: linux64-${{ github.ref_name }}
+          path: artifacts
+      - name: Download artifacts linux32
+        uses: actions/download-artifact@v3
+        id: download-linux32
+        with:
+          name: linux32-${{ github.ref_name }}
+          path: artifacts
+
+      - name: Download artifacts win64
+        uses: actions/download-artifact@v3
+        id: download-win64
+        with:
+          name: win64-${{ github.ref_name }}
+          path: artifacts
+      - name: Download artifacts win32
+        uses: actions/download-artifact@v3
+        id: download-win32
+        with:
+          name: win32-${{ github.ref_name }}
+          path: artifacts
+
+      - name: Download artifacts osx64
+        uses: actions/download-artifact@v3
+        id: download-osx64
+        with:
+          name: osx64-${{ github.ref_name }}
+          path: artifacts
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: |
+            artifacts/linux64-${{ github.ref_name }}.zip
+            artifacts/linux32-${{ github.ref_name }}.zip
+            artifacts/win64-${{ github.ref_name }}.zip
+            artifacts/win32-${{ github.ref_name }}.zip
+            artifacts/osx64-${{ github.ref_name }}.zip
