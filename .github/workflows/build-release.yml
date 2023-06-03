@@ -70,6 +70,10 @@ jobs:
         with:
           name: linux64-${{ github.ref_name }}
           path: build/linux64-${{ github.ref_name }}.zip
+      - uses: actions/upload-artifact@v3
+        with:
+          name: linux-${{ github.ref_name }}-packages
+          path: build/packages
 
   build-win:
     runs-on: windows-latest
@@ -117,6 +121,10 @@ jobs:
         with:
           name: win64-${{ github.ref_name }}
           path: build/win64-${{ github.ref_name }}.zip
+      - uses: actions/upload-artifact@v3
+        with:
+          name: win-${{ github.ref_name }}-packages
+          path: build/packages
 
   build-osx:
     runs-on: macos-12
@@ -152,6 +160,10 @@ jobs:
         with:
           name: osx64-${{ github.ref_name }}
           path: build/osx64-${{ github.ref_name }}.zip
+      - uses: actions/upload-artifact@v3
+        with:
+          name: osx-${{ github.ref_name }}-packages
+          path: build/packages
 
   make-release:
     needs: [build-linux, build-win, build-osx]
@@ -207,3 +219,61 @@ jobs:
             artifacts/win64-${{ github.ref_name }}.zip
             artifacts/win32-${{ github.ref_name }}.zip
             artifacts/osx64-${{ github.ref_name }}.zip
+
+  deploy:
+    runs-on: dantezz-srv
+    steps:
+      - name: clear old deploy files
+        run: cd /var/www/repo && rm -R ./launcher && mkdir launcher
+
+      - name: Download artifacts linux64
+        uses: actions/download-artifact@v3
+        id: download-linux64
+        with:
+          name: linux64-${{ github.ref_name }}
+          path: /var/www/repo/launcher
+      - name: Download artifacts linux32
+        uses: actions/download-artifact@v3
+        id: download-linux32
+        with:
+          name: linux32-${{ github.ref_name }}
+          path: /var/www/repo/launcher
+
+      - name: Download artifacts win64
+        uses: actions/download-artifact@v3
+        id: download-win64
+        with:
+          name: win64-${{ github.ref_name }}
+          path: /var/www/repo/launcher
+      - name: Download artifacts win32
+        uses: actions/download-artifact@v3
+        id: download-win32
+        with:
+          name: win32-${{ github.ref_name }}
+          path: /var/www/repo/launcher
+
+      - name: Download artifacts osx64
+        uses: actions/download-artifact@v3
+        id: download-osx64
+        with:
+          name: osx64-${{ github.ref_name }}
+          path: /var/www/repo/launcher
+
+      - name: Download packages artifacts win
+        uses: actions/download-artifact@v3
+        id: download-packages-win
+        with:
+          name: win-${{ github.ref_name }}-packages
+          path: /var/www/repo/launcher
+      - name: Download packages artifacts win
+        uses: actions/download-artifact@v3
+        id: download-packages-linux
+        with:
+          name: linux-${{ github.ref_name }}-packages
+          path: /var/www/repo/launcher
+      - name: Download packages artifacts win
+        uses: actions/download-artifact@v3
+        id: download-packages-osx
+        with:
+          name: osx-${{ github.ref_name }}-packages
+          path: /var/www/repo/launcher
