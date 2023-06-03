@@ -221,6 +221,7 @@ jobs:
             artifacts/osx64-${{ github.ref_name }}.zip
 
   deploy:
+    needs: [build-linux, build-win, build-osx]
     runs-on: dantezz-srv
     steps:
       - name: clear old deploy files
