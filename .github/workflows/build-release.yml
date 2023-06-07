@@ -222,7 +222,7 @@ jobs:
 
   deploy:
     needs: [build-linux, build-win, build-osx]
-    runs-on: dantezz-srv
+    runs-on: zakplay-repo
     steps:
       - name: clear old deploy files
         run: cd /var/www/repo && rm -R ./launcher && mkdir launcher
